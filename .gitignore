@@ -13,6 +13,7 @@ wheels/
 .python-version
 pyproject.toml
 tempCodeRunnerFile.python
+README.md
 test1
 test2
 test3
