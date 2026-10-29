@@ -1,0 +1,192 @@
+import heapq
+from collections import defaultdict
+from typing import Any, Dict, List, Optional, Tuple
+
+
+class DijkstraGraph:
+    """
+    有向重みつきグラフにおけるダイクストラ法（最短経路探索）の統合ライブラリクラス
+    ・2頂点間（x -> y）および 単一始点全頂点（x -> 全頂点）の両方に対応
+    ・それぞれ「経路復元なし（距離のみ）」「経路復元あり」を選択可能
+    ※辺の重みはすべて非負（0以上）であることを前提とします。
+    """
+
+    def __init__(self) -> None:
+        # 隣接リストとしてグラフを表現（頂点 -> [(隣接頂点, 重み), ...]）
+        self.graph: Dict[Any, List[Tuple[Any, float]]] = defaultdict(list)
+
+    def add_edge(self, u: Any, v: Any, weight: float) -> None:
+        """
+        頂点 u から 頂点 v へ重み weight の有向辺を追加する
+        """
+        if weight < 0:
+            raise ValueError("ダイクストラ法では負の重みを持つ辺は扱えません。")
+
+        # u から v への有向辺と重みを登録
+        self.graph[u].append((v, weight))
+
+        # 終点 v から出る辺がない場合もグラフ内の頂点として認識されるようキーを確保
+        if v not in self.graph:
+            self.graph[v] = []
+
+    # =========================================================================
+    # 内部共通処理（コアアルゴリズムと経路復元ヘルパー）
+    # =========================================================================
+    def _run_dijkstra(
+        self,
+        start: Any,
+        target: Optional[Any] = None,
+        record_prev: bool = False
+    ) -> Tuple[Dict[Any, float], Dict[Any, Optional[Any]]]:
+        """
+        【内部メソッド】ダイクストラ法のコア探索処理
+        - target が指定されている場合：target の最短距離が確定した時点で早期終了する
+        - target が None の場合：全頂点の最短距離が確定するまで探索を続ける
+        - record_prev が True の場合のみ、経路復元用の親頂点（previous_nodes）を記録する
+        """
+        if start not in self.graph:
+            raise ValueError(f"始点 {start} はグラフ内に存在しません。")
+        if target is not None and target not in self.graph:
+            raise ValueError(f"終点 {target} はグラフ内に存在しません。")
+
+        # グラフ内の全頂点への最短距離を無限大（inf）で初期化し、始点のみ 0 に設定
+        distances: Dict[Any, float] = {node: float('inf') for node in self.graph}
+        distances[start] = 0.0
+
+        # 経路復元が必要な場合のみ、1つ前の頂点を記録する辞書を初期化する（メモリ節約）
+        previous_nodes: Dict[Any, Optional[Any]] = {}
+        if record_prev:
+            previous_nodes = {node: None for node in self.graph}
+
+        # 優先度付きキュー：(現在までの距離, 頂点)
+        priority_queue: List[Tuple[float, Any]] = [(0.0, start)]
+
+        while priority_queue:
+            # 現時点で最も距離が短い頂点と距離を取り出す
+            current_dist, current_node = heapq.heappop(priority_queue)
+
+            # 【早期終了】2頂点間探索（target指定あり）で、目的地に到達したら即座に終了
+            if target is not None and current_node == target:
+                break
+
+            # 【枝刈り】すでにより短い経路で更新済みの古いデータはスキップ
+            if current_dist > distances[current_node]:
+                continue
+
+            # 現在の頂点から移動できるすべての隣接頂点を調べる（緩和処理）
+            for neighbor, weight in self.graph[current_node]:
+                new_dist = current_dist + weight
+
+                # より短い経路が見つかった場合のみ更新してキューに追加
+                if new_dist < distances[neighbor]:
+                    distances[neighbor] = new_dist
+                    if record_prev:
+                        # 経路復元フラグが有効な場合のみ、直前の頂点を記録
+                        previous_nodes[neighbor] = current_node
+                    heapq.heappush(priority_queue, (new_dist, neighbor))
+
+        return distances, previous_nodes
+
+    def _reconstruct_path(
+        self,
+        previous_nodes: Dict[Any, Optional[Any]],
+        goal: Any
+    ) -> List[Any]:
+        """
+        【内部メソッド】記録された親頂点の辞書を逆順にたどり、始点から goal までの経路リストを作る
+        """
+        path: List[Any] = []
+        curr: Optional[Any] = goal
+
+        # 終点 goal から始点（親が None になる頂点）まで逆順にたどる
+        while curr is not None:
+            path.append(curr)
+            curr = previous_nodes[curr]
+
+        # [終点, ..., 始点] の順になっているため反転させて [始点, ..., 終点] に直す
+        path.reverse()
+        return path
+
+    # =========================================================================
+    # 公開API 1：2頂点間（x -> y）の最短距離・経路
+    # =========================================================================
+    def shortest_distance(self, x: Any, y: Any) -> float:
+        """
+        頂点 x から 頂点 y への最短距離を返す（経路復元なし・早期終了あり）
+        """
+        distances, _ = self._run_dijkstra(start=x, target=y, record_prev=False)
+        return distances[y]
+
+    def shortest_path(self, x: Any, y: Any) -> Tuple[float, List[Any]]:
+        """
+        頂点 x から 頂点 y への (最短距離, 最短経路リスト) を返す（経路復元あり・早期終了あり）
+        """
+        distances, prev = self._run_dijkstra(start=x, target=y, record_prev=True)
+
+        # 到達不可能な場合は空リストを返す
+        if distances[y] == float('inf'):
+            return float('inf'), []
+
+        return distances[y], self._reconstruct_path(prev, y)
+
+    # =========================================================================
+    # 公開API 2：単一始点全頂点（x -> 全ての頂点）の最短距離・経路
+    # =========================================================================
+    def all_shortest_distances(self, x: Any) -> Dict[Any, float]:
+        """
+        頂点 x から全頂点への最短距離を {頂点: 最短距離} の辞書で返す（経路復元なし）
+        """
+        distances, _ = self._run_dijkstra(start=x, target=None, record_prev=False)
+        return distances
+
+    def all_shortest_paths(self, x: Any) -> Tuple[Dict[Any, float], Dict[Any, List[Any]]]:
+        """
+        頂点 x から全頂点への ({頂点: 最短距離}, {頂点: 最短経路リスト}) を返す（経路復元あり）
+        """
+        distances, prev = self._run_dijkstra(start=x, target=None, record_prev=True)
+
+        # 全頂点に対して共通の経路復元ヘルパーを実行
+        paths: Dict[Any, List[Any]] = {}
+        for node in self.graph:
+            if distances[node] == float('inf'):
+                paths[node] = []
+            else:
+                paths[node] = self._reconstruct_path(prev, node)
+
+        return distances, paths
+
+
+# =============================================================================
+# 動作確認・使用例
+# =============================================================================
+if __name__ == "__main__":
+    # 1. グラフの作成と辺の登録
+    g = DijkstraGraph()
+    edges = [
+        (0, 1, 4), (0, 2, 1), (2, 1, 2),
+        (1, 3, 1), (2, 3, 5), (3, 4, 3)
+    ]
+    for u, v, w in edges:
+        g.add_edge(u, v, w)
+
+    start, goal = 0, 4
+
+    print("--- 1. 2頂点間（経路復元なし） ---")
+    dist = g.shortest_distance(start, goal)
+    print(f"頂点 {start} -> 頂点 {goal} の最短距離: {dist}\n")
+
+    print("--- 2. 2頂点間（経路復元あり） ---")
+    dist, path = g.shortest_path(start, goal)
+    print(f"頂点 {start} -> 頂点 {goal} の最短距離: {dist} | 経路: {' -> '.join(map(str, path))}\n")
+
+    print("--- 3. 全頂点（経路復元なし） ---")
+    all_dists = g.all_shortest_distances(start)
+    for node, d in sorted(all_dists.items()):
+        print(f"頂点 {start} -> 頂点 {node} : 最短距離 = {d}")
+    print()
+
+    print("--- 4. 全頂点（経路復元あり） ---")
+    all_dists, all_paths = g.all_shortest_paths(start)
+    for node in sorted(all_dists.keys()):
+        route = " -> ".join(map(str, all_paths[node]))
+        print(f"頂点 {start} -> 頂点 {node} : 最短距離 = {all_dists[node]} | 経路: {route}")
