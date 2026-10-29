@@ -1,0 +1,36 @@
+#偏角ソート
+#他の計算量が小さい場合　PyPy<CPython
+from functools import cmp_to_key
+#偏角の比較
+def cmp(a, b):
+    x, y = a
+    u, v = b
+    #上下の分別
+    h = y < 0 or (y == 0 and x < 0)
+    k = v < 0 or (v == 0 and u < 0)
+    if h != k:
+        return h - k
+    #外積
+    z = x * v - y * u
+    if z>0:
+        return -1
+    elif z<0:
+        return 1
+    #偏角が同じとき(絶対値の昇順ソート)
+    da = x * x + y * y
+    db = u * u + v * v
+    if da < db:
+        return -1
+    elif da > db:
+        return 1
+    return 0
+#偏角の一致判定
+def is_same_dir(a, b):
+    x, y = a
+    u, v = b
+    if (x == 0 and y == 0) or (u == 0 and v == 0):
+        return False
+    return (y < 0 or (y == 0 and x < 0)) == (v < 0 or (v == 0 and u < 0)) and x * v - y * u == 0
+
+#l=[(x,y)]*n or l=[(x,y,i) for i in range(n)]
+#l.sort(key=cmp_to_key(cmp)) O(NlogN)

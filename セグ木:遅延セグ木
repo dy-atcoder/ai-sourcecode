@@ -1,0 +1,35 @@
+#セグメント木
+from atcoder.segtree import SegTree
+"""""
+st = SegTree(op,e,v) O(N)
+op...演算 min max or def(x,y)
+e...単位元
+v...初期配列 or intを入力すると[e]*v
+
+st.set(i,x)...a[i]=x O(logN)
+st.get(i)...return a[i] O(1)
+st.prod(l,r)...return op([l,r)) O(logN)
+st.all_prod()...return op([0,n)) O(1)
+st.max_right(p,func)...二分探索 p<=iを満たすiの中で関数funcを満たす最小のiを返す O(logN) ex)lambda p:p<x
+st.min_left (p,func)...二分探索 i< pを満たすiの中で関数funcを満たす最大のiを返す O(logN)
+"""
+
+#遅延セグメント木
+from atcoder.lazysegtree import LazySegTree
+"""""
+ls = LazySegTree(op,e,mapping,composition,_id,lst)
+op...演算 min max or def(x,y)
+e...単位元
+mapping...    dataに   lazyを作用させたときの関数
+composition...lazyに別のlazyを作用させたときの関数
+id_...mapping(id,data)=dataとなる値
+lst...初期list
+
+ls.apply(l,r,f)...l<=i<rについてa[i]=f(a[i]) O(logN)
+ls.set(i,x)...a[i]=x O(logN)
+ls.get(i)...return a[i] O(logN)
+ls.prod(l,r)...return op([l,r)) O(logN)
+ls.all_prod()...return op([0,n)) O(1)
+ls.max_right(p,func)...二分探索 p<=iを満たすiの中で、関数funcを満たす最小のiを返す O(logN) ex)lambda p:p<x
+ls.min_left(p, func)...二分探索 i< pを満たすiの中で、関数funcを満たす最大のiを返す O(logN)
+"""

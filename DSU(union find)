@@ -1,0 +1,10 @@
+#DSU(union find)
+from atcoder.dsu import DSU
+""""
+uf=DSU(N) 要素数=N O(N)
+uf.merge(a,b)...union(a,b)新たな代表元の番号を返す  O(1) or O(a(N))
+uf.same(a,b) ...aとbが同じグループかを判定(bool)    O(1) or O(a(N)) ///a(N)は逆アッカーマン関数 a(N)<=5
+uf.leader(a) ...aが属するグループの代表元を返す      O(1) or O(a(N))
+uf.size(a)   ...aが属するグループの要素数を返す O(1)
+uf.groups()  ...全てのグループを2次元listで返す O(N)
+"""
