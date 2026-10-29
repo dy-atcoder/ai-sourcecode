@@ -8,3 +8,11 @@ wheels/
 
 # Virtual environments
 .venv
+
+.DS_Store
+.python-version
+pyproject.toml
+tempCodeRunnerFile.python
+test1
+test2
+test3
