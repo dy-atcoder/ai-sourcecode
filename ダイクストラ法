@@ -8,14 +8,23 @@ from typing import Any, Dict, List, Optional, Tuple
 class DijkstraGraph:
     """
     有向重みつきグラフにおけるダイクストラ法（最短経路探索）の統合ライブラリクラス
+    ・非連結グラフ（到達不可能な頂点や孤立点を含むグラフ）に対応
     ・2頂点間（x -> y）および 単一始点全頂点（x -> 全頂点）の両方に対応
     ・それぞれ「経路復元なし（距離のみ）」「経路復元あり」を選択可能
     ※辺の重みはすべて非負整数（0以上のint）であることを前提とします。
     """
 
-    def __init__(self) -> None:
+    def __init__(self, n: int) -> None:
+        """
+        頂点数 n を受け取り、頂点 0 から n-1 までを初期化する
+        ※1始まり（1 〜 n）で使いたい場合は range(1, n + 1) に変更してください
+        """
+        self.n: int = n
         # 隣接リストとしてグラフを表現（頂点 -> [(隣接頂点, 重み), ...]）
-        self.graph: Dict[Any, List[Tuple[Any, int]]] = defaultdict(list)
+        # 辺が1本も繋がっていない孤立点も管理できるよう、全 n 頂点を事前にキーとして登録する
+        self.graph: Dict[Any, List[Tuple[Any, int]]] = defaultdict(
+            list, {i: [] for i in range(n)}
+        )
 
     def add_edge(self, u: Any, v: Any, weight: int) -> None:
         """
@@ -52,6 +61,7 @@ class DijkstraGraph:
             raise ValueError(f"終点 {target} はグラフ内に存在しません。")
 
         # グラフ内の全頂点への最短距離を無限大（inf）で初期化し、始点のみ 0 に設定
+        # 到達不可能な頂点は探索終了後も float('inf') のまま残る
         distances: Dict[Any, int] = {node: float('inf') for node in self.graph}
         distances[start] = 0
 
@@ -115,6 +125,7 @@ class DijkstraGraph:
     def shortest_distance(self, x: Any, y: Any) -> int:
         """
         頂点 x から 頂点 y への最短距離を返す（経路復元なし・早期終了あり）
+        ※到達できない場合は float('inf') を返す
         """
         distances, _ = self._run_dijkstra(start=x, target=y, record_prev=False)
         return distances[y]
@@ -122,10 +133,11 @@ class DijkstraGraph:
     def shortest_path(self, x: Any, y: Any) -> Tuple[int, List[Any]]:
         """
         頂点 x から 頂点 y への (最短距離, 最短経路リスト) を返す（経路復元あり・早期終了あり）
+        ※到達できない場合は (float('inf'), []) を返す
         """
         distances, prev = self._run_dijkstra(start=x, target=y, record_prev=True)
 
-        # 到達不可能な場合は空リストを返す
+        # 到達不可能な場合は距離 float('inf') と空リストを返す
         if distances[y] == float('inf'):
             return float('inf'), []
 
@@ -137,6 +149,7 @@ class DijkstraGraph:
     def all_shortest_distances(self, x: Any) -> Dict[Any, int]:
         """
         頂点 x から全頂点への最短距離を {頂点: 最短距離} の辞書で返す（経路復元なし）
+        ※到達できない頂点の距離は float('inf') となる
         """
         distances, _ = self._run_dijkstra(start=x, target=None, record_prev=False)
         return distances
@@ -144,6 +157,7 @@ class DijkstraGraph:
     def all_shortest_paths(self, x: Any) -> Tuple[Dict[Any, int], Dict[Any, List[Any]]]:
         """
         頂点 x から全頂点への ({頂点: 最短距離}, {頂点: 最短経路リスト}) を返す（経路復元あり）
+        ※到達できない頂点は 距離が float('inf')、経路リストが [] となる
         """
         distances, prev = self._run_dijkstra(start=x, target=None, record_prev=True)
 
